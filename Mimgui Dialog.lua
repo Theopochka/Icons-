@@ -1,6 +1,7 @@
 local sampev = require("lib.samp.events")
 local ffi = require("ffi")
 
+local lfs = require("lfs")
 local fa = require("fAwesome6_solid")
 local imgui = require 'mimgui'
 local encoding = require 'encoding'
@@ -37,9 +38,24 @@ function sampev.onShowDialog(did, style, dialogTitle, b1, b2, dialogText)
     end
 end
 
+local images = {}
 imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = nil
     fa.Init(15)
+
+    local directory = lfs.currentdir() .. "/icons/"
+
+    for file in lfs.dir(directory) do
+        if file ~= "." and file ~= ".." then
+            local filePath = directory .. "/" .. file
+            local attr = lfs.attributes(filePath)
+            
+            if attr.mode == "file" then
+                images[file:gsub(".png", "")] = imgui.CreateTextureFromFile(filePath)
+            end
+        end
+    end
+
     xey()
 end)
 
@@ -148,6 +164,7 @@ local xey = imgui.OnFrame(
 )
 
 function main()
+
     while not isSampAvailable() do wait(0) end
     wait(-1)
 end
@@ -198,6 +215,157 @@ function imgui.TextColoredRGB(text)
     end
     render_text(text)
 end
+
+local effil = require("effil")
+
+local ThreadHelper = {}
+
+local function awaitThread(thread)
+    while thread:status() == "running" do
+        wait(0)
+    end
+    return thread:status()
+end
+
+--- Создает новый поток
+---@param func fun(...): boolean, any
+---@return table
+function ThreadHelper.newThread(func)
+    if type(func) ~= "function" then
+        error("Expected function, got " .. type(func))
+    end
+
+    local h = {}
+    h.runner = effil.thread(func)
+    h.thread = nil ---@type ThreadHandle
+
+    ---Запускает поток
+    ---@return table
+    function h:start(...)
+        if self.thread then
+            error("Thread already running")
+        end
+        self.thread = self.runner(...)
+        return self
+    end
+
+    ---Синхронно ожидает завершения потока
+    ---@return string? value
+    ---@return string? err
+    ---@return string? stacktrace
+    function h:await()
+        if not self.thread then
+            error("Thread is not running")
+        end
+
+        local status, err, stack = awaitThread(self.thread)
+        if status == "failed" then
+            return nil, err, stack
+        end
+
+        local success, result = self.thread:get()
+        if success then
+            return result
+        else
+            return nil, result
+        end
+    end
+
+    ---Асинхронное ожидание завершения потока
+    ---@param cb? fun(value: string?, err:string?, stacktrace:string?)
+    function h:listen(cb)
+        cb = cb or function(val, err, stack)
+            if err then print(err .. "\n" .. stack) end
+        end
+
+        if not self.thread then
+            error("Thread is not running")
+        end
+
+        lua_thread.create(function()
+            local status, err, stack = awaitThread(self.thread)
+            if status == "failed" then
+                cb(nil, err, stack)
+                return
+            end
+            local success, result = self.thread:get()
+            if success then
+                cb(result)
+            else
+                cb(nil, result)
+            end
+        end)
+    end
+
+    function h:stop()
+        if self.thread and self.thread:status() == "running" then
+            self.thread:cancel()
+        end
+        self.thread = nil
+    end
+
+    return h
+end
+
+--- Создает пул потоков
+---@param array table
+---@param func fun(...): boolean, any
+---@return table
+function ThreadHelper.newThreadPool(array, func)
+    local self = {}
+    self.threads = {}
+
+    for _, v in ipairs(array) do
+        table.insert(self.threads, {
+            thread = ThreadHelper.newThread(func),
+            args = v,
+        })
+    end
+
+    function self:run()
+        for _, t in ipairs(self.threads) do
+            t.thread:start(t.args)
+        end
+    end
+
+    ---Асинхронное ожидание завершения всех потоков
+    ---@param res? fun(result: any, index: number)
+    ---@param rej? fun(err: any, index: number)
+    function self:listen(res, rej)
+        res = res or function() end
+        rej = rej or function(err)
+            print(err)
+        end
+
+        lua_thread.create(function()
+            while #self.threads > 0 do
+                for k, t in ipairs(self.threads) do
+                    local thread = t.thread
+                    if thread.thread and thread.thread:status() ~= "running" then
+                        local result, err, stack = thread:await()
+                        if result then
+                            res(result, k)
+                        else
+                            rej(err or stack, k)
+                        end
+                        table.remove(self.threads, k)
+                    end
+                end
+                wait(0)
+            end
+        end)
+    end
+
+    function self:stopAll()
+        for _, t in ipairs(self.threads) do
+            t.thread:stop()
+        end
+        self.threads = {}
+    end
+
+    return self
+end
+
 function xey()
     local style = imgui.GetStyle();
     local colors = style.Colors;

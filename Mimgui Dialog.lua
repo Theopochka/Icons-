@@ -16,11 +16,28 @@ button1 = ""
 button2 = ""
 dialogID = ""
 
+local ICONS_DIR = getWorkingDirectory() .. "/resource/icons/"
+
+if not doesDirectoryExist(ICONS_DIR) then
+    createDirectory(ICONS_DIR)
+end
+
+local icon_names = { 'bug.png', 'circle-info.png', 'crown.png', 'gears.png', 'hammer.png', 'money-check.png', 'phone.png',
+    'user-secret.png', 'user.png', 'users.png', 'wallet.png' }
+local base_url = "https://raw.githubusercontent.com/Theopochka/Icons-/refs/heads/main/icons/"
+local icon_links = {}
+for _, name in ipairs(icon_names) do
+    icon_links[#icon_links + 1] = {
+        ICONS_DIR .. name,
+        base_url .. name
+    }
+end
+
 local statsrender = new.bool()
 local windowmm = new.bool()
 
 
-function sampev.onShowDialog(did, style, dialogTitle, b1, b2, dialogText) 
+function sampev.onShowDialog(did, style, dialogTitle, b1, b2, dialogText)
     sampAddChatMessage(did, -1)
     if did == 0 then
         title = dialogTitle
@@ -30,7 +47,7 @@ function sampev.onShowDialog(did, style, dialogTitle, b1, b2, dialogText)
         dialogID = did
 
         statsrender[0] = true
-        return false   
+        return false
     end
     if did == 722 then
         windowmm[0] = true
@@ -43,17 +60,9 @@ imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = nil
     fa.Init(15)
 
-    local directory = lfs.currentdir() .. "/icons/"
-
-    for file in lfs.dir(directory) do
-        if file ~= "." and file ~= ".." then
-            local filePath = directory .. "/" .. file
-            local attr = lfs.attributes(filePath)
-            
-            if attr.mode == "file" then
-                images[file:gsub(".png", "")] = imgui.CreateTextureFromFile(filePath)
-            end
-        end
+    for i, file in ipairs(listFiles(ICONS_DIR)) do
+        local iconname = file:match("([^/\\]+)%.png$")
+        images[iconname] = imgui.CreateTextureFromFile(file)
     end
 
     xey()
@@ -68,16 +77,16 @@ local dark_grey = imgui.OnFrame(
     function(player)
         local resX, resY = getScreenResolution()
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        if imgui.Begin(u8'stats', statsrender, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove) then
+        if imgui.Begin(u8 'stats', statsrender, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove) then
             if title ~= "" and text ~= "" then
                 imgui.TextColoredRGB(text)
                 imgui.SetCursorPosX(100)
-                 
-                if imgui.Button(u8(button1), imgui.ImVec2(70 * MONET_DPI_SCALE)) then 
+
+                if imgui.Button(u8(button1), imgui.ImVec2(70 * MONET_DPI_SCALE)) then
                     sampSendDialogResponse(dialogID, 0, nil, nil)
                 end
                 imgui.SameLine()
-                if imgui.Button(u8(button2), imgui.ImVec2(70 * MONET_DPI_SCALE)) then 
+                if imgui.Button(u8(button2), imgui.ImVec2(70 * MONET_DPI_SCALE)) then
                     statsrender[0] = false
                 end
             else
@@ -89,73 +98,94 @@ local dark_grey = imgui.OnFrame(
     end
 )
 
-local xey = imgui.OnFrame(
+imgui.OnFrame(
     function() return windowmm[0] end,
     function(player)
         local resX, resY = getScreenResolution()
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        if imgui.Begin(u8'', windowmm, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove) then
-            if imgui.Button(fa.USER..u8" Персонаж", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+        if imgui.Begin(u8 '', windowmm, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove) then
+            local base_button_size = imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)
+            -- Персонаж
+            if imgui.IconButtonWithText(images['user'], base_button_size, u8 "Персонаж") then
                 sampSendDialogResponse(722, 1, 0, nil)
                 windowmm[0] = false
             end
-            imgui.PopFont()
             imgui.SameLine()
-            if imgui.Button(fa.HAMMER..u8" Хелп меню", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Хелп меню
+            if imgui.IconButtonWithText(images['hammer'], base_button_size, u8 " Хелп меню") then
                 sampSendDialogResponse(722, 1, 1, nil)
                 windowmm[0] = false
-            end            
+            end
             imgui.SameLine()
-            if imgui.Button(fa.BUG..u8" Репорт", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Репорт
+            if imgui.IconButtonWithText(images['bug'], base_button_size, u8 " Репорт") then
                 sampSendChat("/rep")
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.CIRCLE_INFO..u8" Хелп меню", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Хелп меню
+            if imgui.IconButtonWithText(images['circle-info'], base_button_size, u8 " Хелп меню") then
                 sampSendChat("/help")
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.GEARS..u8" Настройки", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Настройки
+            if imgui.IconButtonWithText(images['gears'], base_button_size, u8 " Настройки") then
                 sampSendChat("/settings")
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.MONEY_CHECK..u8" Донат", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Донат
+            if imgui.IconButtonWithText(images['money-check'], base_button_size, u8 " Донат") then
                 sampSendChat("/donate")
                 windowmm[0] = false
             end
-            -- нижния полоска
-            if imgui.Button(fa.PHONE..u8" Телефон", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+            -- нижний полоска
+            if imgui.IconButtonWithText(images['phone'], base_button_size, u8 " Телефон") then
                 sampSendChat("/phone")
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.USERS..u8" История ников", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- История ников
+            if imgui.IconButtonWithText(images['users'], base_button_size, u8 " История ников") then
                 sampSendDialogResponse(722, 1, 7, nil)
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.USER_SECRET..u8" Наказания", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Наказания
+            if imgui.IconButtonWithText(images['user-secret'], base_button_size, u8 " Наказания") then
                 sampSendDialogResponse(722, 1, 8, nil)
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.CROWN..u8" Премиум игроки", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Премиум игроки
+            if imgui.IconButtonWithText(images['crown'], base_button_size, u8 " Премиум игроки") then
                 sampSendDialogResponse(722, 1, 9, nil)
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.WALLET..u8" Промо-код", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- Промо-код
+            if imgui.IconButtonWithText(images['wallet'], base_button_size, u8 " Промо-код") then
                 sampSendDialogResponse(722, 1, 10, nil)
                 windowmm[0] = false
             end
             imgui.SameLine()
-            if imgui.Button(fa.CROWN..u8" VIP Статус", imgui.ImVec2(123 * MONET_DPI_SCALE, 120 * MONET_DPI_SCALE)) then
+
+            -- VIP Статус
+            if imgui.IconButtonWithText(images['crown'], base_button_size, u8 " VIP Статус") then
                 sampSendDialogResponse(722, 1, 11, nil)
                 windowmm[0] = false
             end
-            if imgui.Button(fa.XMARK..u8" Закрыть", imgui.ImVec2(778 * MONET_DPI_SCALE, 20 * MONET_DPI_SCALE)) then
+            if imgui.Button(fa.XMARK .. u8 " Закрыть", imgui.ImVec2(778 * MONET_DPI_SCALE, 20 * MONET_DPI_SCALE)) then
                 windowmm[0] = false
             end
             imgui.End()
@@ -164,10 +194,36 @@ local xey = imgui.OnFrame(
 )
 
 function main()
+    local needReinstall = false
+    if #listFiles(ICONS_DIR) ~= #icon_links then
+        needReinstall = true
+    end
+
+    if needReinstall then
+        local pool = ThreadHelper.newThreadPool(icon_links, function(file)
+            local requests = require("requests")
+            local http = require("socket.http")
+            local ltn12 = require("ltn12")
+            http.request({ method = "GET", url = file[2], sink = ltn12.sink.file(io.open(file[1], "wb")) })
+
+            return true
+        end)
+
+        pool:run()
+
+        pool:listen(function(result, err, index)
+            if err then
+                print("An error occurred while downloading icon: " .. err)
+            else
+                print("Icon " .. icon_links[index][1] .. " downloaded successfully")
+            end
+        end)
+    end
 
     while not isSampAvailable() do wait(0) end
     wait(-1)
 end
+
 function imgui.TextColoredRGB(text)
     local style = imgui.GetStyle()
     local colors = style.Colors
@@ -188,7 +244,7 @@ function imgui.TextColoredRGB(text)
         local color = type(color) == 'string' and tonumber(color, 16) or color
         if type(color) ~= 'number' then return end
         local r, g, b, a = explode_argb(color)
-        return imgui.ImVec4(r/255, g/255, b/255, a/255)
+        return imgui.ImVec4(r / 255, g / 255, b / 255, a / 255)
     end
     local render_text = function(text_)
         for w in text_:gmatch('[^\r\n]+') do
@@ -210,15 +266,99 @@ function imgui.TextColoredRGB(text)
                     imgui.SameLine(nil, 0)
                 end
                 imgui.NewLine()
-            else imgui.Text(u8(w)) end
+            else
+                imgui.Text(u8(w))
+            end
         end
     end
     render_text(text)
 end
 
+function imgui.IconButtonWithText(icon_texture, button_size, label, colors)
+    local icon_size = imgui.ImVec2(button_size.x * 0.4, button_size.y * 0.4)
+
+    colors = colors or {
+        normal = imgui.GetColorU32(imgui.Col.Button),
+        hover = imgui.GetColorU32(imgui.Col.ButtonHovered),
+        border = imgui.GetColorU32(imgui.Col.ButtonHovered),
+        hover_border = imgui.GetColorU32(imgui.Col.Button),
+        text = imgui.GetColorU32(imgui.Col.Text)
+    }
+
+    local style = imgui.GetStyle()
+    local rounding = style.FrameRounding
+
+    local draw_list = imgui.GetWindowDrawList()
+    local cursor_pos = imgui.GetCursorScreenPos()
+
+    local icon_width, icon_height = icon_size.x, icon_size.y
+    local text_size = imgui.CalcTextSize(label)
+
+    -- Button size is exactly the specified size
+    local button_width = button_size.x
+    local button_height = button_size.y
+
+    imgui.InvisibleButton("##" .. label, button_size)
+    local is_hovered = imgui.IsItemHovered()
+    local is_clicked = imgui.IsItemClicked()
+
+    local bg_color = is_hovered and colors.hover or colors.normal
+    local border_color = is_hovered and colors.hover_border or colors.border
+
+    -- Background rectangle
+    draw_list:AddRectFilled(cursor_pos, imgui.ImVec2(cursor_pos.x + button_width, cursor_pos.y + button_height), bg_color,
+        rounding)
+
+    -- Border rectangle
+    draw_list:AddRect(cursor_pos, imgui.ImVec2(cursor_pos.x + button_width, cursor_pos.y + button_height), border_color,
+        rounding)
+
+    -- Icon
+    local icon_x = cursor_pos.x + (button_width - icon_width) * 0.5
+    local icon_y = cursor_pos.y + (button_height - icon_height - text_size.y) * 0.5
+    draw_list:AddImage(icon_texture, imgui.ImVec2(icon_x, icon_y),
+        imgui.ImVec2(icon_x + icon_width, icon_y + icon_height))
+
+    -- Text
+    local text_x = cursor_pos.x + (button_width - text_size.x) * 0.5
+    local text_y = icon_y + icon_height + 2
+    draw_list:AddText(imgui.ImVec2(text_x, text_y), colors.text, label)
+
+    return is_clicked
+end
+
+function listFiles(path, recursive)
+    recursive = recursive or false
+    local files = {}
+
+    local function scan_dir(dir)
+        for file in lfs.dir(dir) do
+            if file ~= "." and file ~= ".." then
+                local full_path = dir .. "/" .. file
+                local attributes = lfs.attributes(full_path)
+
+                if attributes.mode == "file" then
+                    table.insert(files, full_path)
+                elseif attributes.mode == "directory" and recursive then
+                    scan_dir(full_path)
+                end
+            end
+        end
+    end
+
+    local attributes = lfs.attributes(path)
+    if attributes and attributes.mode == "directory" then
+        scan_dir(path)
+    else
+        error("Invalid directory: " .. path)
+    end
+
+    return files
+end
+
 local effil = require("effil")
 
-local ThreadHelper = {}
+ThreadHelper = {}
 
 local function awaitThread(thread)
     while thread:status() == "running" do
@@ -272,7 +412,7 @@ function ThreadHelper.newThread(func)
     end
 
     ---Асинхронное ожидание завершения потока
-    ---@param cb? fun(value: string?, err:string?, stacktrace:string?)
+    ---@param cb? fun(value: any, err:string?, stacktrace:string?)
     function h:listen(cb)
         cb = cb or function(val, err, stack)
             if err then print(err .. "\n" .. stack) end
@@ -310,7 +450,6 @@ end
 --- Создает пул потоков
 ---@param array table
 ---@param func fun(...): boolean, any
----@return table
 function ThreadHelper.newThreadPool(array, func)
     local self = {}
     self.threads = {}
@@ -328,13 +467,14 @@ function ThreadHelper.newThreadPool(array, func)
         end
     end
 
-    ---Асинхронное ожидание завершения всех потоков
-    ---@param res? fun(result: any, index: number)
-    ---@param rej? fun(err: any, index: number)
-    function self:listen(res, rej)
-        res = res or function() end
-        rej = rej or function(err)
-            print(err)
+    ---@param cb fun(value: any, err: string?, index: number)
+    function self:listen(cb)
+        cb = cb or function(result, index)
+            if result then
+                print("Result from thread " .. index .. ": " .. tostring(result))
+            else
+                print("Error from thread " .. index)
+            end
         end
 
         lua_thread.create(function()
@@ -344,9 +484,9 @@ function ThreadHelper.newThreadPool(array, func)
                     if thread.thread and thread.thread:status() ~= "running" then
                         local result, err, stack = thread:await()
                         if result then
-                            res(result, k)
+                            cb(result, nil, k)       -- Успех
                         else
-                            rej(err or stack, k)
+                            cb(nil, err or stack, k) -- Ошибка
                         end
                         table.remove(self.threads, k)
                     end
@@ -517,4 +657,4 @@ function dark_grey()
     colors[imgui.Col.NavWindowingHighlight] = imgui.ImVec4(1.00, 1.00, 1.00, 0.70);
     colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20);
     colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.35);
-    end
+end

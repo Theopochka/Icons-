@@ -275,7 +275,7 @@ function imgui.TextColoredRGB(text)
 end
 
 function imgui.IconButtonWithText(icon_texture, button_size, label, colors)
-    local icon_size = imgui.ImVec2(button_size.x * 0.4, button_size.y * 0.4)
+    local icon_size = imgui.ImVec2(button_size.x * 0.543, button_size.y * 0.543)
 
     colors = colors or {
         normal = imgui.GetColorU32(imgui.Col.Button),
